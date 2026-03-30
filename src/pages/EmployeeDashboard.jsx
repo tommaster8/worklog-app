@@ -97,11 +97,12 @@ export default function EmployeeDashboard() {
     const q = query(
       collection(db, "workSessions"),
       where("employeeId", "==", employee.id),
-      where("endTime", "!=", null),
-      orderBy("endTime", "desc")
+      where("endTime", "!=", null)
     );
     const snap = await getDocs(q);
-    setSessions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const sorted = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.endTime?.toMillis?.() || 0) - (a.endTime?.toMillis?.() || 0));
+    setSessions(sorted);
   }, [employee?.id]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
