@@ -32,7 +32,7 @@ export default function ManageProjects() {
     setLoading(true);
     const [projSnap, facSnap] = await Promise.all([
       getDocs(query(collection(db, "projects"), orderBy("name"))),
-      getDocs(query(collection(db, "factories"), where("active", "==", true), orderBy("name"))),
+      getDocs(query(collection(db, "factories"), where("active", "==", true))),
     ]);
     setItems(projSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     setFactories(facSnap.docs.map(d => ({ id: d.id, ...d.data() })));
