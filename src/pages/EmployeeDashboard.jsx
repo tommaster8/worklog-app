@@ -96,11 +96,11 @@ export default function EmployeeDashboard() {
     if (!employee) return;
     const q = query(
       collection(db, "workSessions"),
-      where("employeeId", "==", employee.id),
-      where("endTime", "!=", null)
+      where("employeeId", "==", employee.id)
     );
     const snap = await getDocs(q);
     const sorted = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => s.endTime != null)
       .sort((a, b) => (b.endTime?.toMillis?.() || 0) - (a.endTime?.toMillis?.() || 0));
     setSessions(sorted);
   }, [employee?.id]);
