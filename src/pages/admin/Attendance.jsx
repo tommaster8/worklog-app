@@ -57,8 +57,12 @@ export default function Attendance() {
 
   // Load employees once
   useEffect(() => {
-    getDocs(query(collection(db, "employees"), where("active", "==", true), orderBy("name")))
-      .then(s => setEmployees(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    getDocs(query(collection(db, "employees"), where("active", "==", true)))
+      .then(s => {
+        const list = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => a.name.localeCompare(b.name, "he"));
+        setEmployees(list);
+      });
   }, []);
 
   // Load sessions (all, filter client-side)
@@ -67,8 +71,7 @@ export default function Attendance() {
       setLoading(true);
       const snap = await getDocs(query(
         collection(db, "workSessions"),
-        where("endTime", "!=", null),
-        orderBy("endTime", "desc")
+        where("endTime", "!=", null)
       ));
       setSessions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
