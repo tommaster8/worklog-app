@@ -5,12 +5,12 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 // For local development with emulators, use "demo-" prefix project ID
 // For production, replace with your real Firebase config
 const firebaseConfig = {
-  apiKey: "demo-key",
-  authDomain: "demo-worklog.firebaseapp.com",
-  projectId: "demo-worklog",
-  storageBucket: "demo-worklog.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000",
+  apiKey: "AIzaSyCiHe702cM96FUfMHRLpV1oEDdvR3MIODg",
+  authDomain: "worklog-prod-9133d.firebaseapp.com",
+  projectId: "worklog-prod-9133d",
+  storageBucket: "worklog-prod-9133d.firebasestorage.app",
+  messagingSenderId: "867573316659",
+  appId: "1:867573316659:web:894288cd37cb937404f746",
 };
 
 const app = initializeApp(firebaseConfig);
