@@ -217,7 +217,7 @@ export default function Reports() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map(s => (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={s.id} className="hover:bg-gray-50 transition-colors" title={s.description || ""}>
                       <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{s.employeeName}</td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{s.date}</td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{tsToTime(s.startTime)}</td>
