@@ -86,21 +86,16 @@ export default function Attendance() {
       const [y, m] = selectedMonth.split("-").map(Number);
       const monthEnd = `${selectedMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
 
-      let q = query(
+      const snap = await getDocs(query(
         collection(db, "absences"),
         where("date", ">=", monthStart),
         where("date", "<=", monthEnd)
-      );
+      ));
+      let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (selectedEmployee) {
-        q = query(
-          collection(db, "absences"),
-          where("date", ">=", monthStart),
-          where("date", "<=", monthEnd),
-          where("employeeId", "==", selectedEmployee)
-        );
+        list = list.filter(a => a.employeeId === selectedEmployee);
       }
-      const snap = await getDocs(q);
-      setAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAbsences(list);
     }
     loadAbsences();
   }, [selectedMonth, selectedEmployee]);
@@ -180,14 +175,14 @@ export default function Attendance() {
       const monthStart = `${selectedMonth}-01`;
       const [y, m] = selectedMonth.split("-").map(Number);
       const monthEnd = `${selectedMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
-      const q = query(
+      const snap = await getDocs(query(
         collection(db, "absences"),
         where("date", ">=", monthStart),
-        where("date", "<=", monthEnd),
-        where("employeeId", "==", selectedEmployee)
-      );
-      const snap = await getDocs(q);
-      setAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        where("date", "<=", monthEnd)
+      ));
+      let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (selectedEmployee) list = list.filter(a => a.employeeId === selectedEmployee);
+      setAbsences(list);
       setModal(null);
     } catch (err) {
       alert("שגיאה בשמירה: " + err.message);
