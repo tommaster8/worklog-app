@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
-  doc, query, where, orderBy, Timestamp
+  doc, query, where, Timestamp
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import AdminLayout from "../../components/AdminLayout";
@@ -42,20 +42,22 @@ const getSecs = s => s.durationSeconds ?? (s.durationMinutes || 0) * 60;
 export default function Attendance() {
   const [employees, setEmployees] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [absences, setAbsences] = useState([]);
+  const [allAbsences, setAllAbsences] = useState([]); // כל ההיעדרויות בחודש, ללא סינון
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedEmployee, setSelectedEmployee] = useState("");
 
-  // Modal state: null = closed, { date, existing: null|{id,type,note} }
-  const [modal, setModal] = useState(null);
+  // Day popup
+  const [dayPopup, setDayPopup] = useState(null); // { date }
+
+  // Absence modal (from within day popup)
+  const [absenceModal, setAbsenceModal] = useState(null); // { date, employeeId, existing }
   const [modalType, setModalType] = useState("חופש");
   const [modalNote, setModalNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Load employees once
   useEffect(() => {
     getDocs(query(collection(db, "employees"), where("active", "==", true)))
       .then(s => {
@@ -65,7 +67,6 @@ export default function Attendance() {
       });
   }, []);
 
-  // Load sessions (all, filter client-side)
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -79,33 +80,31 @@ export default function Attendance() {
     load();
   }, []);
 
-  // Load absences for selected month (+ employee if selected)
-  useEffect(() => {
-    async function loadAbsences() {
-      const monthStart = `${selectedMonth}-01`;
-      const [y, m] = selectedMonth.split("-").map(Number);
-      const monthEnd = `${selectedMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+  async function loadAbsences() {
+    const monthStart = `${selectedMonth}-01`;
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const monthEnd = `${selectedMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+    const snap = await getDocs(query(
+      collection(db, "absences"),
+      where("date", ">=", monthStart),
+      where("date", "<=", monthEnd)
+    ));
+    setAllAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  }
 
-      const snap = await getDocs(query(
-        collection(db, "absences"),
-        where("date", ">=", monthStart),
-        where("date", "<=", monthEnd)
-      ));
-      let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (selectedEmployee) {
-        list = list.filter(a => a.employeeId === selectedEmployee);
-      }
-      setAbsences(list);
-    }
-    loadAbsences();
-  }, [selectedMonth, selectedEmployee]);
+  useEffect(() => { loadAbsences(); }, [selectedMonth]);
 
-  // Sessions for selected month + employee
+  // Sessions filtered by month + optional employee (for calendar)
   const filtered = sessions.filter(s => {
     if (!s.date?.startsWith(selectedMonth)) return false;
     if (selectedEmployee && s.employeeId !== selectedEmployee) return false;
     return true;
   });
+
+  // Absences filtered by optional employee (for calendar)
+  const absences = selectedEmployee
+    ? allAbsences.filter(a => a.employeeId === selectedEmployee)
+    : allAbsences;
 
   // Map: date → { secs, count }
   const dayMap = {};
@@ -115,75 +114,83 @@ export default function Attendance() {
     dayMap[s.date].count += 1;
   });
 
-  // Map: date → { id, type, note }
+  // Map: date → { id, type, note } (for calendar, filtered by selectedEmployee)
   const absenceMap = {};
   absences.forEach(a => {
-    absenceMap[a.date] = { id: a.id, type: a.type, note: a.note || "" };
+    absenceMap[a.date] = { id: a.id, type: a.type, note: a.note || "", employeeId: a.employeeId };
   });
 
-  // Build calendar grid
+  // Calendar grid
   const [year, month] = selectedMonth.split("-").map(Number);
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
-
   const cells = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const totalDaysWorked = Object.keys(dayMap).length;
   const totalSecs = Object.values(dayMap).reduce((a, v) => a + v.secs, 0);
-  const totalAbsences = Object.keys(absenceMap).length;
+  const totalAbsences = absences.length;
 
-  // Open modal
-  function openModal(dateStr) {
-    const isFuture = dateStr > today;
-    const worked = !!dayMap[dateStr];
-    if (isFuture || worked) return; // no action on future or worked days
+  // פתיחת פופאפ יום
+  function openDayPopup(dateStr) {
+    if (dateStr > today) return;
+    setDayPopup({ date: dateStr });
+  }
 
-    if (!selectedEmployee) {
-      alert("בחר עובד ספציפי כדי לסמן היעדרות");
-      return;
-    }
+  // נתוני פופאפ יום
+  function getDayData(date) {
+    const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
+    const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
-    const existing = absenceMap[dateStr] || null;
+    const worked = employees
+      .filter(e => daySessions.some(s => s.employeeId === e.id))
+      .map(e => {
+        const empSessions = daySessions.filter(s => s.employeeId === e.id);
+        const totalSecs = empSessions.reduce((a, s) => a + getSecs(s), 0);
+        const factories = [...new Set(empSessions.map(s => s.factoryName).filter(Boolean))].join(", ");
+        const projects = [...new Set(empSessions.map(s => s.projectName).filter(Boolean))].join(", ");
+        return { ...e, totalSecs, factories, projects };
+      });
+
+    const didntWork = employees
+      .filter(e => !daySessions.some(s => s.employeeId === e.id))
+      .map(e => {
+        const absence = dayAbsencesAll.find(a => a.employeeId === e.id);
+        return { ...e, absence: absence || null };
+      });
+
+    return { worked, didntWork };
+  }
+
+  // פתיחת מודל היעדרות
+  function openAbsenceModal(date, employeeId, existing) {
     setModalType(existing?.type || "חופש");
     setModalNote(existing?.note || "");
-    setModal({ date: dateStr, existing });
+    setAbsenceModal({ date, employeeId, existing: existing || null });
   }
 
   async function saveAbsence() {
-    if (!modal) return;
+    if (!absenceModal) return;
     setSaving(true);
     try {
-      const emp = employees.find(e => e.id === selectedEmployee);
-      if (modal.existing) {
-        await updateDoc(doc(db, "absences", modal.existing.id), {
-          type: modalType,
-          note: modalNote,
+      const emp = employees.find(e => e.id === absenceModal.employeeId);
+      if (absenceModal.existing) {
+        await updateDoc(doc(db, "absences", absenceModal.existing.id), {
+          type: modalType, note: modalNote,
         });
       } else {
         await addDoc(collection(db, "absences"), {
-          employeeId: selectedEmployee,
+          employeeId: absenceModal.employeeId,
           employeeName: emp?.name || "",
-          date: modal.date,
+          date: absenceModal.date,
           type: modalType,
           note: modalNote,
           createdAt: Timestamp.now(),
         });
       }
-      // Refresh absences
-      const monthStart = `${selectedMonth}-01`;
-      const [y, m] = selectedMonth.split("-").map(Number);
-      const monthEnd = `${selectedMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
-      const snap = await getDocs(query(
-        collection(db, "absences"),
-        where("date", ">=", monthStart),
-        where("date", "<=", monthEnd)
-      ));
-      let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (selectedEmployee) list = list.filter(a => a.employeeId === selectedEmployee);
-      setAbsences(list);
-      setModal(null);
+      await loadAbsences();
+      setAbsenceModal(null);
     } catch (err) {
       alert("שגיאה בשמירה: " + err.message);
     } finally {
@@ -192,12 +199,12 @@ export default function Attendance() {
   }
 
   async function deleteAbsence() {
-    if (!modal?.existing) return;
+    if (!absenceModal?.existing) return;
     setSaving(true);
     try {
-      await deleteDoc(doc(db, "absences", modal.existing.id));
-      setAbsences(prev => prev.filter(a => a.id !== modal.existing.id));
-      setModal(null);
+      await deleteDoc(doc(db, "absences", absenceModal.existing.id));
+      await loadAbsences();
+      setAbsenceModal(null);
     } catch (err) {
       alert("שגיאה במחיקה: " + err.message);
     } finally {
@@ -250,14 +257,12 @@ export default function Attendance() {
 
         {/* Calendar */}
         <div className="bg-white rounded-xl shadow p-4">
-          {/* Day headers */}
           <div className="grid grid-cols-7 mb-2">
             {HE_DAYS.map(d => (
               <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
             ))}
           </div>
 
-          {/* Day cells */}
           {loading ? (
             <div className="text-center text-gray-400 py-8">טוען...</div>
           ) : (
@@ -269,7 +274,6 @@ export default function Attendance() {
                 const absence = absenceMap[dateStr];
                 const isToday = dateStr === today;
                 const isFuture = dateStr > today;
-                const clickable = !data && !isFuture;
 
                 let bg = "bg-gray-50";
                 if (data) bg = "bg-green-50";
@@ -278,12 +282,12 @@ export default function Attendance() {
                 return (
                   <div
                     key={dateStr}
-                    onClick={() => openModal(dateStr)}
+                    onClick={() => openDayPopup(dateStr)}
                     className={`
                       rounded-lg p-1 min-h-[52px] flex flex-col items-center justify-start pt-1 text-center transition-colors
                       ${isToday ? "ring-2 ring-blue-400" : ""}
                       ${bg}
-                      ${clickable ? "cursor-pointer hover:brightness-95" : ""}
+                      ${!isFuture ? "cursor-pointer hover:brightness-95" : ""}
                     `}
                   >
                     <span className={`text-xs font-bold ${isToday ? "text-blue-600" : data ? "text-green-700" : absence ? absenceText(absence.type) : "text-gray-400"}`}>
@@ -310,40 +314,104 @@ export default function Attendance() {
 
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-3 mt-4 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-green-100 ring-1 ring-green-300" />
-              <span className="text-xs text-gray-500">יום עבודה</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-orange-100 ring-1 ring-orange-300" />
-              <span className="text-xs text-gray-500">חופש</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-red-100 ring-1 ring-red-300" />
-              <span className="text-xs text-gray-500">מחלה</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gray-100" />
-              <span className="text-xs text-gray-500">לא עבד</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-white ring-2 ring-blue-400" />
-              <span className="text-xs text-gray-500">היום</span>
-            </div>
+            {[
+              { color: "bg-green-100 ring-1 ring-green-300", label: "יום עבודה" },
+              { color: "bg-orange-100 ring-1 ring-orange-300", label: "חופש" },
+              { color: "bg-red-100 ring-1 ring-red-300", label: "מחלה" },
+              { color: "bg-gray-100", label: "לא עבד" },
+              { color: "bg-white ring-2 ring-blue-400", label: "היום" },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className={`w-3 h-3 rounded ${color}`} />
+                <span className="text-xs text-gray-500">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
+      {/* Day Popup */}
+      {dayPopup && (() => {
+        const { worked, didntWork } = getDayData(dayPopup.date);
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl max-h-[85vh] flex flex-col">
+              <div className="p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-800">📅 {dayPopup.date}</h2>
+                  <button onClick={() => setDayPopup(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-4 space-y-4">
+                {/* עבדו */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">עבדו ({worked.length})</p>
+                  {worked.length === 0 ? (
+                    <p className="text-sm text-gray-400">אף אחד לא עבד ביום זה</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {worked.map(emp => (
+                        <div key={emp.id} className="bg-green-50 rounded-xl p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-800 text-sm">✅ {emp.name}</span>
+                            <span className="text-green-600 font-bold text-sm">{formatHours(emp.totalSecs)}</span>
+                          </div>
+                          {emp.factories && <p className="text-xs text-gray-500 mt-1">🏭 {emp.factories}</p>}
+                          {emp.projects && <p className="text-xs text-gray-500">📋 {emp.projects}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* לא עבדו */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">לא עבדו ({didntWork.length})</p>
+                  {didntWork.length === 0 ? (
+                    <p className="text-sm text-gray-400">כולם עבדו היום</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {didntWork.map(emp => (
+                        <div key={emp.id} className={`rounded-xl p-3 flex items-center justify-between ${emp.absence ? absenceBg(emp.absence.type) : "bg-gray-50"}`}>
+                          <div>
+                            <span className="font-medium text-gray-700 text-sm">
+                              {emp.absence ? absenceLabel(emp.absence.type) : "❌"} {emp.name}
+                            </span>
+                            {emp.absence && (
+                              <p className={`text-xs mt-0.5 ${absenceText(emp.absence.type)}`}>
+                                {emp.absence.type}{emp.absence.note ? ` — ${emp.absence.note}` : ""}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => openAbsenceModal(dayPopup.date, emp.id, emp.absence)}
+                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            {emp.absence ? "ערוך" : "+ סמן"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Absence Modal */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
+      {absenceModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-[60] px-4 pb-4 sm:pb-0">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h2 className="text-lg font-bold text-gray-800 mb-1 text-center">
-              {modal.existing ? "עריכת היעדרות" : "סימון היעדרות"}
+              {absenceModal.existing ? "עריכת היעדרות" : "סימון היעדרות"}
             </h2>
-            <p className="text-sm text-gray-400 text-center mb-4">{modal.date}</p>
+            <p className="text-sm text-gray-400 text-center mb-4">
+              {employees.find(e => e.id === absenceModal.employeeId)?.name} — {absenceModal.date}
+            </p>
 
-            {/* Type selection */}
             <div className="flex gap-2 mb-4">
               {ABSENCE_TYPES.map(t => (
                 <button
@@ -361,7 +429,6 @@ export default function Attendance() {
               ))}
             </div>
 
-            {/* Note */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">הערה (אופציונלי)</label>
               <textarea
@@ -373,9 +440,8 @@ export default function Attendance() {
               />
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-2">
-              {modal.existing && (
+              {absenceModal.existing && (
                 <button
                   type="button"
                   onClick={deleteAbsence}
@@ -387,7 +453,7 @@ export default function Attendance() {
               )}
               <button
                 type="button"
-                onClick={() => setModal(null)}
+                onClick={() => setAbsenceModal(null)}
                 className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 ביטול
