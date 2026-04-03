@@ -48,14 +48,27 @@ export default function AdminDashboard() {
   const activeEmployees = empStats.filter(e => e.totalSecs > 0).length;
 
   const today = new Date().toISOString().split("T")[0];
-  const todaySessions = sessions.filter(s => s.date === today);
+  const todaySessions = sessions.filter(s => s.date === today && s.endTime != null);
   const workedTodayIds = new Set(todaySessions.map(s => s.employeeId));
-  const workedToday = employees
-    .filter(e => workedTodayIds.has(e.id))
-    .map(e => {
-      const s = todaySessions.find(s => s.employeeId === e.id);
-      return { ...e, factoryName: s?.factoryName || "—" };
-    });
+
+  // קיבוץ לפי מפעל+פרויקט — שעות פעם אחת, שמות עובדים בפסיק
+  const todayGroups = {};
+  todaySessions.forEach(s => {
+    const key = `${s.factoryId || ""}__${s.projectId || ""}`;
+    if (!todayGroups[key]) {
+      todayGroups[key] = {
+        factoryName: s.factoryName || "—",
+        projectName: s.projectName || "—",
+        durationSecs: getSecs(s),
+        workerNames: [],
+      };
+    }
+    const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
+    if (empName && !todayGroups[key].workerNames.includes(empName)) {
+      todayGroups[key].workerNames.push(empName);
+    }
+  });
+  const todayWorkGroups = Object.values(todayGroups);
   const didntWorkToday = employees.filter(e => !workedTodayIds.has(e.id));
 
   return (
@@ -98,27 +111,31 @@ export default function AdminDashboard() {
             <div className="p-6 text-center text-gray-400">טוען...</div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {workedToday.map(emp => (
-                <div key={emp.id} className="px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-500 text-lg">✅</span>
-                    <span className="font-medium text-gray-800">{emp.name}</span>
-                  </div>
-                  <span className="text-sm text-gray-500">{emp.factoryName}</span>
-                </div>
-              ))}
-              {didntWorkToday.map(emp => (
-                <div key={emp.id} className="px-4 py-3 flex items-center justify-between opacity-50">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-300 text-lg">❌</span>
-                    <span className="font-medium text-gray-500">{emp.name}</span>
-                  </div>
-                  <span className="text-sm text-gray-400">לא עבד</span>
-                </div>
-              ))}
-              {employees.length === 0 && (
+              {todayWorkGroups.length === 0 && didntWorkToday.length === 0 && (
                 <div className="p-6 text-center text-gray-400">אין עובדים פעילים</div>
               )}
+              {todayWorkGroups.map((g, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-gray-800 text-sm">✅ {g.workerNames.join(", ")}</p>
+                    <span className="text-green-600 font-bold text-sm whitespace-nowrap">{formatHours(g.durationSecs)}</span>
+                  </div>
+                  <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
+                    <span>🏭 {g.factoryName}</span>
+                    <span>📋 {g.projectName}</span>
+                  </div>
+                </div>
+              ))}
+              {todayWorkGroups.length === 0 && (
+                <div className="px-4 py-3 text-sm text-gray-400">אף אחד לא עבד היום עדיין</div>
+              )}
+              {didntWorkToday.map(emp => (
+                <div key={emp.id} className="px-4 py-3 flex items-center gap-2 opacity-50">
+                  <span className="text-gray-300">❌</span>
+                  <span className="text-sm text-gray-500">{emp.name}</span>
+                  <span className="text-xs text-gray-400">— לא עבד</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
