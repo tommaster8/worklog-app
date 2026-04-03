@@ -2,22 +2,27 @@
 
 ## מה זה?
 אפליקציית ווב לניהול שעות עבודה חודשיות לעסק משפחתי.
-- **עובדים** נכנסים עם מספר טלפון בלבד, מתחילים/מסיימים יום עבודה, רואים סטטיסטיקות
+- **אמין בלבד** — נכנס עם מספר 0547515894, מתחיל/מסיים יום, בסוף יום מסמן אילו עובדים עבדו איתו
 - **אדמין** (אבא — g.rubin.2012@gmail.com) מנהל עובדים/מפעלים/פרויקטים, רואה דוחות ומייצא Excel
+
+## פריסה (Production)
+
+- **GitHub:** https://github.com/tommaster8/worklog-app
+- **Vercel:** מחובר לגיטהאב — כל `git push` מפעיל בנייה אוטומטית
+- **Firebase:** worklog-prod-9133d (Firestore + Auth)
+
+זרימה: קבצים מקומיים → `git push` → GitHub → Vercel (בנייה אוטומטית) → אפליקציה חיה
 
 ## הרצת סביבת פיתוח
 
 **דורש 2 טרמינלים נפרדים:**
 
-**טרמינל 1 — Firebase Emulators (Auth + Firestore):**
+**טרמינל 1 — Firebase Emulators:**
 ```bash
 cd worklog-app
 npm run emulators
 ```
-ממתין עד שמופיע: `✔ All emulators ready!`
-- Firestore: localhost:8080
-- Auth: localhost:9099
-- Emulator UI: http://localhost:4000
+ממתין עד: `✔ All emulators ready!`
 
 **טרמינל 2 — האפליקציה:**
 ```bash
@@ -25,12 +30,12 @@ cd worklog-app
 npm run dev
 ```
 - מחשב: http://localhost:5173
-- טלפון (אותה רשת WiFi): http://192.168.0.100:5173
+- טלפון (אותה רשת): http://192.168.68.106:5173
 
 > **חשוב:** Java ו-Node.js הותקנו (Microsoft OpenJDK 21 + Node.js v24). Firebase CLI מותקן גלובלית.
-> אם האמולטורים לא עולים — ודא ש-Java בנתיב: `C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot/bin`
+> אם האמולטורים לא עולים — ודא Java בנתיב: `C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot/bin`
 
-## פרטי כניסה (סביבת פיתוח)
+## פרטי כניסה
 
 | תפקיד | פרטים |
 |-------|--------|
@@ -45,9 +50,10 @@ npm run dev
 |------|-----------|
 | Frontend | React 19 + Vite 8 |
 | Styling | TailwindCSS v4 |
-| Database | Firebase Firestore (emulator בפיתוח) |
-| Auth | Firebase Auth (emulator בפיתוח) |
+| Database | Firebase Firestore (production: worklog-prod-9133d) |
+| Auth | Firebase Auth |
 | Export | SheetJS (xlsx) |
+| Hosting | Vercel (מחובר ל-GitHub) |
 
 ## מבנה Firestore
 
@@ -90,46 +96,48 @@ absences/     {
 | `/` | כניסת עובד (מספר טלפון) |
 | `/dashboard` | לוח עובד — טיימר + היסטוריה |
 | `/admin/login` | כניסת אדמין |
-| `/admin` | דשבורד אדמין — סיכום שעות לפי חודש |
+| `/admin` | דשבורד אדמין — סיכום חודשי + סטטוס היום |
 | `/admin/employees` | ניהול עובדים |
 | `/admin/factories` | ניהול מפעלים |
 | `/admin/projects` | ניהול פרויקטים + פילטר סטטוסים |
 | `/admin/reports` | דוחות + ייצוא Excel + עריכת רשומות |
-| `/admin/attendance` | לוח נוכחות חודשי + סימון היעדרויות |
+| `/admin/attendance` | לוח נוכחות חודשי + פופאפ יום + סימון היעדרויות |
 
 ## קבצים מרכזיים
 
 ```
 src/
-  firebase.js                    — הגדרת Firebase + חיבור לאמולטורים
+  firebase.js                    — הגדרת Firebase (production config)
   App.jsx                        — ניתוב + הגנת routes אדמין
   pages/
-    EmployeeLogin.jsx             — זיהוי עובד לפי טלפון
-    EmployeeDashboard.jsx         — טיימר, סיום יום, היסטוריה
+    EmployeeLogin.jsx             — כניסה לפי טלפון (מוגבל ל-0547515894 בלבד)
+    EmployeeDashboard.jsx         — טיימר, סיום יום + סימון עובדים, היסטוריה
     AdminLogin.jsx                — כניסת אדמין
     admin/
-      AdminDashboard.jsx          — סיכום שעות לפי חודש
+      AdminDashboard.jsx          — סיכום חודשי + סטטוס היום (מקובץ לפי מפעל/פרויקט)
       ManageEmployees.jsx         — CRUD עובדים
       ManageFactories.jsx         — CRUD מפעלים
       ManageProjects.jsx          — CRUD פרויקטים + סטטוסים + פילטר
-      Reports.jsx                 — סינון טווח תאריכים + ייצוא Excel + עריכה
-      Attendance.jsx              — לוח נוכחות + סימון היעדרויות
+      Reports.jsx                 — סינון + ייצוא Excel + עריכה + tooltip תיאור
+      Attendance.jsx              — לוח נוכחות + פופאפ יום (מי עבד/לא) + היעדרויות
   components/
     AdminLayout.jsx               — layout + ניווט תחתון לאדמין
-firestore.rules                  — כללי אבטחה
-vite.config.js                   — server.host: true לגישה מהטלפון
-seed.mjs                         — יצירת נתוני דוגמה לאמולטור
+firestore.rules                  — כללי אבטחה (production)
+vercel.json                      — rewrites לתמיכה ב-React Router
+seed.mjs                         — נתוני דוגמה לאמולטור
+seed-prod.mjs                    — נתוני אתחול ל-Firebase production
 ```
 
 ## החלטות עיצוב חשובות
 
-- **השבתה במקום מחיקה** — עובדים/מפעלים/פרויקטים מושבתים ולא נמחקים, לשמירת היסטוריה
-- **פרויקט ← מפעל** — כל פרויקט שייך למפעל אחד. בסיום יום: בוחרים מפעל → רק הפרויקטים שלו
-- **גישה מוגבלת לאמין בלבד** — רק מספר 0547515894 יכול להיכנס לצד העובדים. כל מספר אחר נחסם בלוגין.
-- **סימון עובדים בסוף יום** — אמין מסיים יום ומסמן אילו עובדים עבדו איתו. המערכת יוצרת workSession לכל עובד שנסמן עם אותם נתונים (שעות, מפעל, פרויקט).
-- **ללא Auth לעובדים** — עובדים מזדהים עם מספר טלפון בלבד (sessionStorage)
-- **durationSeconds** — זמן נשמר בשניות למדויקות. `getSecs(s)` מטפל בתאימות לאחור עם `durationMinutes`
-- **Firestore rules** — workSessions מאפשר create+update ללא auth; absences + שאר דורשים auth
+- **גישה מוגבלת לאמין בלבד** — רק 0547515894 יכול להיכנס לצד העובדים
+- **סימון עובדים בסוף יום** — אמין מסמן מי עבד איתו → workSession נוצר לכל עובד עם אותם שעות/מפעל/פרויקט
+- **שעות לא מוכפלות** — בדשבורד ובפופאפ: שעות מוצגות פעם אחת (לא כפול מספר העובדים)
+- **קיבוץ לפי מפעל+פרויקט** — בסטטוס היום ובפופאפ נוכחות: עובדים מוצגים בשורה אחת עם פסיקים
+- **סינון client-side** — כל שאילתות Firestore ללא orderBy מורכב (למניעת דרישת composite index)
+- **השבתה במקום מחיקה** — עובדים/מפעלים/פרויקטים מושבתים ולא נמחקים
+- **ללא Auth לעובדים** — זיהוי לפי טלפון בלבד (sessionStorage)
+- **durationSeconds** — `getSecs(s)` מטפל בתאימות לאחור עם `durationMinutes`
 
 ## סטטוסי פרויקט
 
@@ -140,16 +148,10 @@ seed.mjs                         — יצירת נתוני דוגמה לאמול
 | הושלם | false  | true      | false  | ❌ לא |
 | לא פעיל | false | false   | false  | ❌ לא |
 
-## פיצ'רים שנוספו
+## פיצ'רים עיקריים
 
-- **טווח תאריכים בדוחות** — dateFrom + dateTo במקום חודש בלבד
-- **מניעת כפל sessions** — בדיקת Firestore לפני פתיחת session חדש
-- **לוח נוכחות** — גריד חודשי עם צביעה לפי ימי עבודה/היעדרות
-- **היעדרויות** — סימון חופש/מחלה/אחר על ימים בלוח הנוכחות
-- **סטטוסי פרויקט** — פעיל / עתידי / הושלם / לא פעיל + פילטר tabs
-- **גישה מטלפון** — vite.config.js מגדיר host:true, גישה דרך רשת מקומית (כתובת רשת: http://192.168.68.106:5173)
-
-## מה עוד לא הושלם
-
-- [ ] חיבור ל-Firebase אמיתי — כרגע הכל רץ רק באמולטור מקומי
-- [ ] העלאה ל-Vercel/Firebase Hosting
+- **סטטוס היום** — בדשבורד אדמין: מי עבד (שמות, מפעל, פרויקט, שעות) ומי לא
+- **פופאפ יום בנוכחות** — לחיצה על כל יום בלוח → פופאפ עם כל העובדים + אפשרות סימון היעדרות
+- **tooltip תיאור בדוחות** — ריחוף מעל שורה מציג את תיאור העבודה
+- **ייצוא Excel** — דוחות עם פילטר תאריכים
+- **לוח נוכחות** — גריד חודשי עם צביעה לפי עבד/חופש/מחלה
