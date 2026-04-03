@@ -47,6 +47,8 @@ export default function EmployeeDashboard() {
   const [saving, setSaving] = useState(false);
   const [allEmployees, setAllEmployees] = useState([]);
   const [selectedWorkers, setSelectedWorkers] = useState([]);
+  const [absencePopup, setAbsencePopup] = useState(null); // [{ emp, type, skip }]
+  const [savingAbsences, setSavingAbsences] = useState(false);
 
   useEffect(() => {
     if (!employee) { navigate("/"); return; }
@@ -166,12 +168,44 @@ export default function EmployeeDashboard() {
       }
       setShowEndForm(false);
       setForm({ factoryId: "", factoryName: "", projectId: "", projectName: "", description: "" });
+
+      // עובדים שלא עבדו — פתח פופאפ היעדרויות
+      const didntWork = allEmployees.filter(e =>
+        e.phone !== "0547515894" && !selectedWorkers.some(w => w.id === e.id)
+      );
       setSelectedWorkers([]);
+      if (didntWork.length > 0) {
+        setAbsencePopup(didntWork.map(emp => ({ emp, type: "חופש", skip: false })));
+      }
       loadSessions();
     } catch (err) {
       alert("שגיאה בשמירה: " + err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveAbsences() {
+    if (!absencePopup) return;
+    setSavingAbsences(true);
+    try {
+      const date = new Date().toISOString().split("T")[0];
+      for (const row of absencePopup) {
+        if (row.skip) continue;
+        await addDoc(collection(db, "absences"), {
+          employeeId: row.emp.id,
+          employeeName: row.emp.name,
+          date,
+          type: row.type,
+          note: "",
+          createdAt: Timestamp.now(),
+        });
+      }
+      setAbsencePopup(null);
+    } catch (err) {
+      alert("שגיאה בשמירה: " + err.message);
+    } finally {
+      setSavingAbsences(false);
     }
   }
 
@@ -291,6 +325,74 @@ export default function EmployeeDashboard() {
           )}
         </div>
       </div>
+
+      {/* Absence Popup */}
+      {absencePopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800 text-center">סימון היעדרויות</h2>
+              <p className="text-sm text-gray-400 text-center mt-1">מי לא הגיע היום?</p>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {absencePopup.map((row, i) => (
+                <div key={row.emp.id} className={`rounded-xl p-3 border transition-colors ${row.skip ? "border-gray-100 bg-gray-50 opacity-50" : "border-gray-200 bg-white"}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-gray-800 text-sm">{row.emp.name}</span>
+                    <label className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={row.skip}
+                        onChange={e => setAbsencePopup(prev => prev.map((r, j) => j === i ? { ...r, skip: e.target.checked } : r))}
+                      />
+                      דלג
+                    </label>
+                  </div>
+                  {!row.skip && (
+                    <div className="flex gap-2">
+                      {[
+                        { value: "חופש", label: "🌴 חופש" },
+                        { value: "מחלה", label: "🤒 מחלה" },
+                        { value: "אחר",  label: "📝 אחר" },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setAbsencePopup(prev => prev.map((r, j) => j === i ? { ...r, type: opt.value } : r))}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            row.type === opt.value
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setAbsencePopup(null)}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                דלג על הכל
+              </button>
+              <button
+                type="button"
+                onClick={saveAbsences}
+                disabled={savingAbsences}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2.5 rounded-xl text-sm font-bold transition-colors"
+              >
+                {savingAbsences ? "שומר..." : "שמור"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* End Session Modal */}
       {showEndForm && (
