@@ -138,29 +138,37 @@ export default function Attendance() {
     setDayPopup({ date: dateStr });
   }
 
-  // נתוני פופאפ יום
+  // נתוני פופאפ יום — מקובץ לפי מפעל+פרויקט
   function getDayData(date) {
     const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
-    const worked = employees
-      .filter(e => daySessions.some(s => s.employeeId === e.id))
-      .map(e => {
-        const empSessions = daySessions.filter(s => s.employeeId === e.id);
-        const totalSecs = empSessions.reduce((a, s) => a + getSecs(s), 0);
-        const factories = [...new Set(empSessions.map(s => s.factoryName).filter(Boolean))].join(", ");
-        const projects = [...new Set(empSessions.map(s => s.projectName).filter(Boolean))].join(", ");
-        return { ...e, totalSecs, factories, projects };
-      });
+    // קיבוץ לפי מפעל+פרויקט: שעות = של session אחד (לא סכום כולם)
+    const groups = {};
+    daySessions.forEach(s => {
+      const key = `${s.factoryId || ""}__${s.projectId || ""}`;
+      if (!groups[key]) {
+        groups[key] = {
+          factoryName: s.factoryName || "—",
+          projectName: s.projectName || "—",
+          durationSecs: getSecs(s), // שעות של session אחד
+          workerNames: [],
+        };
+      }
+      const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
+      if (empName && !groups[key].workerNames.includes(empName)) {
+        groups[key].workerNames.push(empName);
+      }
+    });
 
+    const workGroups = Object.values(groups);
+
+    const workedIds = new Set(daySessions.map(s => s.employeeId));
     const didntWork = employees
-      .filter(e => !daySessions.some(s => s.employeeId === e.id))
-      .map(e => {
-        const absence = dayAbsencesAll.find(a => a.employeeId === e.id);
-        return { ...e, absence: absence || null };
-      });
+      .filter(e => !workedIds.has(e.id))
+      .map(e => ({ ...e, absence: dayAbsencesAll.find(a => a.employeeId === e.id) || null }));
 
-    return { worked, didntWork };
+    return { workGroups, didntWork };
   }
 
   // פתיחת מודל היעדרות
@@ -332,7 +340,7 @@ export default function Attendance() {
 
       {/* Day Popup */}
       {dayPopup && (() => {
-        const { worked, didntWork } = getDayData(dayPopup.date);
+        const { workGroups, didntWork } = getDayData(dayPopup.date);
         return (
           <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl max-h-[85vh] flex flex-col">
@@ -346,19 +354,19 @@ export default function Attendance() {
               <div className="overflow-y-auto flex-1 p-4 space-y-4">
                 {/* עבדו */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">עבדו ({worked.length})</p>
-                  {worked.length === 0 ? (
+                  <p className="text-xs font-semibold text-gray-500 mb-2">עבדו</p>
+                  {workGroups.length === 0 ? (
                     <p className="text-sm text-gray-400">אף אחד לא עבד ביום זה</p>
                   ) : (
                     <div className="space-y-2">
-                      {worked.map(emp => (
-                        <div key={emp.id} className="bg-green-50 rounded-xl p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-800 text-sm">✅ {emp.name}</span>
-                            <span className="text-green-600 font-bold text-sm">{formatHours(emp.totalSecs)}</span>
+                      {workGroups.map((g, i) => (
+                        <div key={i} className="bg-green-50 rounded-xl p-3 space-y-1">
+                          <p className="text-sm font-medium text-gray-800">✅ {g.workerNames.join(", ")}</p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                            <span>🏭 {g.factoryName}</span>
+                            <span>📋 {g.projectName}</span>
+                            <span className="text-green-600 font-bold">⏱ {formatHours(g.durationSecs)}</span>
                           </div>
-                          {emp.factories && <p className="text-xs text-gray-500 mt-1">🏭 {emp.factories}</p>}
-                          {emp.projects && <p className="text-xs text-gray-500">📋 {emp.projects}</p>}
                         </div>
                       ))}
                     </div>
@@ -367,7 +375,7 @@ export default function Attendance() {
 
                 {/* לא עבדו */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">לא עבדו ({didntWork.length})</p>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">לא עבדו</p>
                   {didntWork.length === 0 ? (
                     <p className="text-sm text-gray-400">כולם עבדו היום</p>
                   ) : (
