@@ -47,6 +47,17 @@ export default function AdminDashboard() {
   const totalMonthSecs = monthSessions.reduce((a, s) => a + (getSecs(s)), 0);
   const activeEmployees = empStats.filter(e => e.totalSecs > 0).length;
 
+  const today = new Date().toISOString().split("T")[0];
+  const todaySessions = sessions.filter(s => s.date === today);
+  const workedTodayIds = new Set(todaySessions.map(s => s.employeeId));
+  const workedToday = employees
+    .filter(e => workedTodayIds.has(e.id))
+    .map(e => {
+      const s = todaySessions.find(s => s.employeeId === e.id);
+      return { ...e, factoryName: s?.factoryName || "—" };
+    });
+  const didntWorkToday = employees.filter(e => !workedTodayIds.has(e.id));
+
   return (
     <AdminLayout title="ניהול שעות עבודה">
       <div className="space-y-6">
@@ -76,6 +87,40 @@ export default function AdminDashboard() {
             <p className="text-2xl font-bold text-purple-600">{monthSessions.length}</p>
           </div>
 
+        </div>
+
+        {/* Today's status */}
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-800">סטטוס היום — {today}</h2>
+          </div>
+          {loading ? (
+            <div className="p-6 text-center text-gray-400">טוען...</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {workedToday.map(emp => (
+                <div key={emp.id} className="px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-500 text-lg">✅</span>
+                    <span className="font-medium text-gray-800">{emp.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-500">{emp.factoryName}</span>
+                </div>
+              ))}
+              {didntWorkToday.map(emp => (
+                <div key={emp.id} className="px-4 py-3 flex items-center justify-between opacity-50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300 text-lg">❌</span>
+                    <span className="font-medium text-gray-500">{emp.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-400">לא עבד</span>
+                </div>
+              ))}
+              {employees.length === 0 && (
+                <div className="p-6 text-center text-gray-400">אין עובדים פעילים</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Employee table */}
