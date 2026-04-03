@@ -152,6 +152,7 @@ export default function Attendance() {
           factoryName: s.factoryName || "—",
           projectName: s.projectName || "—",
           durationSecs: getSecs(s), // שעות של session אחד
+          description: s.description || "",
           workerNames: [],
         };
       }
@@ -367,6 +368,9 @@ export default function Attendance() {
                             <span>📋 {g.projectName}</span>
                             <span className="text-green-600 font-bold">⏱ {formatHours(g.durationSecs)}</span>
                           </div>
+                          {g.description && (
+                            <p className="text-xs text-gray-500 mt-1 italic">"{g.description}"</p>
+                          )}
                         </div>
                       ))}
                     </div>
