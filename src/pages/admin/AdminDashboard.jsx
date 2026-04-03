@@ -60,6 +60,7 @@ export default function AdminDashboard() {
         factoryName: s.factoryName || "—",
         projectName: s.projectName || "—",
         durationSecs: getSecs(s),
+        description: s.description || "",
         workerNames: [],
       };
     }
@@ -124,6 +125,9 @@ export default function AdminDashboard() {
                     <span>🏭 {g.factoryName}</span>
                     <span>📋 {g.projectName}</span>
                   </div>
+                  {g.description && (
+                    <p className="text-xs text-gray-400 mt-0.5 italic">"{g.description}"</p>
+                  )}
                 </div>
               ))}
               {todayWorkGroups.length === 0 && (
