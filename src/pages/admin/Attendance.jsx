@@ -94,11 +94,14 @@ export default function Attendance() {
 
   useEffect(() => { loadAbsences(); }, [selectedMonth]);
 
+  const amin = employees.find(e => e.phone === "0547515894");
+
   // Sessions filtered by month + optional employee (for calendar)
+  // כשאין סינון עובד — רק סשנים של אמין כדי לא לכפול שעות
   const filtered = sessions.filter(s => {
     if (!s.date?.startsWith(selectedMonth)) return false;
-    if (selectedEmployee && s.employeeId !== selectedEmployee) return false;
-    return true;
+    if (selectedEmployee) return s.employeeId === selectedEmployee;
+    return amin ? s.employeeId === amin.id : true;
   });
 
   // Absences filtered by optional employee (for calendar)
@@ -142,8 +145,6 @@ export default function Attendance() {
   function getDayData(date) {
     const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
-
-    const amin = employees.find(e => e.phone === "0547515894");
 
     // אם מסוננים לפי עובד ספציפי — הצג רק סשנים שלו
     // אחרת — הצג רק דיווחי אמין (המקוריים)
