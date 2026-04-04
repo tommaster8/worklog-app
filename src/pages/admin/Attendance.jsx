@@ -143,26 +143,18 @@ export default function Attendance() {
     const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
-    // קיבוץ לפי מפעל+פרויקט: שעות = של session אחד (לא סכום כולם)
-    const groups = {};
-    daySessions.forEach(s => {
-      const key = `${s.factoryId || ""}__${s.projectId || ""}`;
-      if (!groups[key]) {
-        groups[key] = {
-          factoryName: s.factoryName || "—",
-          projectName: s.projectName || "—",
-          durationSecs: getSecs(s),
-          description: s.description || "",
-          workerNames: [],
-        };
-      }
-      const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
-      if (empName && !groups[key].workerNames.includes(empName)) {
-        groups[key].workerNames.push(empName);
-      }
-    });
-
-    const workGroups = Object.values(groups);
+    const workGroups = daySessions
+      .filter(s => Array.isArray(s.coWorkers))
+      .map(s => ({
+        factoryName: s.factoryName || "—",
+        projectName: s.projectName || "—",
+        durationSecs: getSecs(s),
+        description: s.description || "",
+        workerNames: [
+          employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+          ...(s.coWorkers || []),
+        ].filter(Boolean),
+      }));
 
     const workedIds = new Set(daySessions.map(s => s.employeeId));
     const didntWork = employees
