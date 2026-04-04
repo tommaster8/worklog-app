@@ -144,22 +144,33 @@ export default function Attendance() {
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
     const amin = employees.find(e => e.phone === "0547515894");
-    const workGroups = daySessions
-      .filter(s => amin && s.employeeId === amin.id)
-      .map(s => ({
-        factoryName: s.factoryName || "—",
-        projectName: s.projectName || "—",
-        durationSecs: getSecs(s),
-        description: s.description || "",
-        workerNames: [
-          amin.name,
-          ...(s.coWorkers || []),
-        ].filter(Boolean),
-      }));
+
+    // אם מסוננים לפי עובד ספציפי — הצג רק סשנים שלו
+    // אחרת — הצג רק דיווחי אמין (המקוריים)
+    const workGroups = selectedEmployee
+      ? daySessions
+          .filter(s => s.employeeId === selectedEmployee)
+          .map(s => ({
+            factoryName: s.factoryName || "—",
+            projectName: s.projectName || "—",
+            durationSecs: getSecs(s),
+            description: s.description || "",
+            workerNames: [employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—"],
+          }))
+      : daySessions
+          .filter(s => amin && s.employeeId === amin.id)
+          .map(s => ({
+            factoryName: s.factoryName || "—",
+            projectName: s.projectName || "—",
+            durationSecs: getSecs(s),
+            description: s.description || "",
+            workerNames: [amin.name, ...(s.coWorkers || [])].filter(Boolean),
+          }));
 
     const workedIds = new Set(daySessions.map(s => s.employeeId));
     const didntWork = employees
       .filter(e => !workedIds.has(e.id))
+      .filter(e => !selectedEmployee || e.id === selectedEmployee)
       .map(e => ({ ...e, absence: dayAbsencesAll.find(a => a.employeeId === e.id) || null }));
 
     return { workGroups, didntWork };
