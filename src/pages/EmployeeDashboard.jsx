@@ -149,6 +149,7 @@ export default function EmployeeDashboard() {
         projectId: form.projectId,
         projectName: form.projectName,
         description: form.description,
+        coWorkers: selectedWorkers.map(w => w.name),
       });
       for (const worker of selectedWorkers) {
         await addDoc(collection(db, "workSessions"), {
@@ -319,6 +320,14 @@ export default function EmployeeDashboard() {
                     </div>
                   </div>
                   {s.description && <p className="text-gray-500 text-xs mt-2 border-t pt-2">{s.description}</p>}
+                  {s.coWorkers?.length > 0 && (
+                    <p className="text-gray-400 text-xs mt-1.5 border-t pt-1.5">
+                      👷 עבדו איתך: {s.coWorkers.join(", ")}
+                    </p>
+                  )}
+                  {s.coWorkers?.length === 0 && (
+                    <p className="text-gray-300 text-xs mt-1.5 border-t pt-1.5">עבדת לבד</p>
+                  )}
                 </div>
               ))}
             </div>
