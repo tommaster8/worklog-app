@@ -382,7 +382,7 @@ export default function Attendance() {
                 </div>
 
                 {/* לא עבדו */}
-                <div>
+                {!selectedEmployee && <div>
                   <p className="text-xs font-semibold text-gray-500 mb-2">לא עבדו</p>
                   {didntWork.length === 0 ? (
                     <p className="text-sm text-gray-400">כולם עבדו היום</p>
@@ -410,7 +410,7 @@ export default function Attendance() {
                       ))}
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
             </div>
           </div>
