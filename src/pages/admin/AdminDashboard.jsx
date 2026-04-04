@@ -51,25 +51,13 @@ export default function AdminDashboard() {
   const todaySessions = sessions.filter(s => s.date === today && s.endTime != null);
   const workedTodayIds = new Set(todaySessions.map(s => s.employeeId));
 
-  // קיבוץ לפי מפעל+פרויקט — שעות פעם אחת, שמות עובדים בפסיק
-  const todayGroups = {};
-  todaySessions.forEach(s => {
-    const key = `${s.factoryId || ""}__${s.projectId || ""}`;
-    if (!todayGroups[key]) {
-      todayGroups[key] = {
-        factoryName: s.factoryName || "—",
-        projectName: s.projectName || "—",
-        durationSecs: getSecs(s),
-        description: s.description || "",
-        workerNames: [],
-      };
-    }
-    const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
-    if (empName && !todayGroups[key].workerNames.includes(empName)) {
-      todayGroups[key].workerNames.push(empName);
-    }
-  });
-  const todayWorkGroups = Object.values(todayGroups);
+  const todayWorkGroups = todaySessions.map(s => ({
+    factoryName: s.factoryName || "—",
+    projectName: s.projectName || "—",
+    durationSecs: getSecs(s),
+    description: s.description || "",
+    workerName: employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+  }));
   const didntWorkToday = employees.filter(e => !workedTodayIds.has(e.id));
 
   return (
@@ -118,7 +106,7 @@ export default function AdminDashboard() {
               {todayWorkGroups.map((g, i) => (
                 <div key={i} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-gray-800 text-sm">✅ {g.workerNames.join(", ")}</p>
+                    <p className="font-medium text-gray-800 text-sm">✅ {g.workerName}</p>
                     <span className="text-green-600 font-bold text-sm whitespace-nowrap">{formatHours(g.durationSecs)}</span>
                   </div>
                   <div className="flex gap-3 mt-0.5 text-xs text-gray-500">

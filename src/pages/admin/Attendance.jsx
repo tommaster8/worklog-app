@@ -143,26 +143,13 @@ export default function Attendance() {
     const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
-    // קיבוץ לפי מפעל+פרויקט: שעות = של session אחד (לא סכום כולם)
-    const groups = {};
-    daySessions.forEach(s => {
-      const key = `${s.factoryId || ""}__${s.projectId || ""}`;
-      if (!groups[key]) {
-        groups[key] = {
-          factoryName: s.factoryName || "—",
-          projectName: s.projectName || "—",
-          durationSecs: getSecs(s), // שעות של session אחד
-          description: s.description || "",
-          workerNames: [],
-        };
-      }
-      const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
-      if (empName && !groups[key].workerNames.includes(empName)) {
-        groups[key].workerNames.push(empName);
-      }
-    });
-
-    const workGroups = Object.values(groups);
+    const workGroups = daySessions.map(s => ({
+      factoryName: s.factoryName || "—",
+      projectName: s.projectName || "—",
+      durationSecs: getSecs(s),
+      description: s.description || "",
+      workerName: employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+    }));
 
     const workedIds = new Set(daySessions.map(s => s.employeeId));
     const didntWork = employees
@@ -362,7 +349,7 @@ export default function Attendance() {
                     <div className="space-y-2">
                       {workGroups.map((g, i) => (
                         <div key={i} className="bg-green-50 rounded-xl p-3 space-y-1">
-                          <p className="text-sm font-medium text-gray-800">✅ {g.workerNames.join(", ")}</p>
+                          <p className="text-sm font-medium text-gray-800">✅ {g.workerName}</p>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
                             <span>🏭 {g.factoryName}</span>
                             <span>📋 {g.projectName}</span>
