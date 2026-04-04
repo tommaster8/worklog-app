@@ -51,25 +51,19 @@ export default function AdminDashboard() {
   const todaySessions = sessions.filter(s => s.date === today && s.endTime != null);
   const workedTodayIds = new Set(todaySessions.map(s => s.employeeId));
 
-  // קיבוץ לפי מפעל+פרויקט — שעות פעם אחת, שמות עובדים בפסיק
-  const todayGroups = {};
-  todaySessions.forEach(s => {
-    const key = `${s.factoryId || ""}__${s.projectId || ""}`;
-    if (!todayGroups[key]) {
-      todayGroups[key] = {
-        factoryName: s.factoryName || "—",
-        projectName: s.projectName || "—",
-        durationSecs: getSecs(s),
-        description: s.description || "",
-        workerNames: [],
-      };
-    }
-    const empName = employees.find(e => e.id === s.employeeId)?.name || s.employeeName;
-    if (empName && !todayGroups[key].workerNames.includes(empName)) {
-      todayGroups[key].workerNames.push(empName);
-    }
-  });
-  const todayWorkGroups = Object.values(todayGroups);
+  // רק דיווחים מקוריים של אמין (יש להם שדה coWorkers), כל אחד בנפרד
+  const todayWorkGroups = todaySessions
+    .filter(s => Array.isArray(s.coWorkers))
+    .map(s => ({
+      factoryName: s.factoryName || "—",
+      projectName: s.projectName || "—",
+      durationSecs: getSecs(s),
+      description: s.description || "",
+      workerNames: [
+        employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+        ...(s.coWorkers || []),
+      ].filter(Boolean),
+    }));
   const didntWorkToday = employees.filter(e => !workedTodayIds.has(e.id));
 
   return (
