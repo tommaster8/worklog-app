@@ -8,6 +8,66 @@ import AdminLayout from "../../components/AdminLayout";
 
 const HE_DAYS = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"];
 
+// חגים ישראלים ואסלאמיים 2025-2026
+const HOLIDAYS = {
+  // חגים יהודיים 2025
+  "2025-04-12": { name: "פסח", type: "jewish" },
+  "2025-04-13": { name: "פסח", type: "jewish" },
+  "2025-04-18": { name: "חול המועד", type: "jewish" },
+  "2025-04-19": { name: "חול המועד", type: "jewish" },
+  "2025-04-20": { name: "שביעי פסח", type: "jewish" },
+  "2025-04-21": { name: "אחרון פסח", type: "jewish" },
+  "2025-04-30": { name: "יום הזיכרון", type: "jewish" },
+  "2025-05-01": { name: "יום העצמאות", type: "jewish" },
+  "2025-06-01": { name: "שבועות", type: "jewish" },
+  "2025-06-02": { name: "שבועות", type: "jewish" },
+  "2025-09-22": { name: "ראש השנה", type: "jewish" },
+  "2025-09-23": { name: "ראש השנה", type: "jewish" },
+  "2025-10-01": { name: "יום כיפור", type: "jewish" },
+  "2025-10-02": { name: "יום כיפור", type: "jewish" },
+  "2025-10-06": { name: "סוכות", type: "jewish" },
+  "2025-10-07": { name: "סוכות", type: "jewish" },
+  "2025-10-13": { name: "שמחת תורה", type: "jewish" },
+  "2025-10-14": { name: "שמחת תורה", type: "jewish" },
+  "2025-12-14": { name: "חנוכה", type: "jewish" },
+  "2025-12-15": { name: "חנוכה", type: "jewish" },
+  "2025-12-16": { name: "חנוכה", type: "jewish" },
+  "2025-12-17": { name: "חנוכה", type: "jewish" },
+  "2025-12-18": { name: "חנוכה", type: "jewish" },
+  "2025-12-19": { name: "חנוכה", type: "jewish" },
+  "2025-12-20": { name: "חנוכה", type: "jewish" },
+  "2025-12-21": { name: "חנוכה", type: "jewish" },
+  // חגים יהודיים 2026
+  "2026-03-02": { name: "פורים", type: "jewish" },
+  "2026-03-03": { name: "פורים", type: "jewish" },
+  "2026-04-01": { name: "פסח", type: "jewish" },
+  "2026-04-02": { name: "פסח", type: "jewish" },
+  "2026-04-07": { name: "חול המועד", type: "jewish" },
+  "2026-04-08": { name: "חול המועד", type: "jewish" },
+  "2026-04-09": { name: "שביעי פסח", type: "jewish" },
+  "2026-04-22": { name: "יום הזיכרון", type: "jewish" },
+  "2026-04-23": { name: "יום העצמאות", type: "jewish" },
+  "2026-05-21": { name: "שבועות", type: "jewish" },
+  "2026-05-22": { name: "שבועות", type: "jewish" },
+  // חגים אסלאמיים 2025
+  "2025-03-30": { name: "עיד אל-פיטר", type: "arab" },
+  "2025-03-31": { name: "עיד אל-פיטר", type: "arab" },
+  "2025-04-01": { name: "עיד אל-פיטר", type: "arab" },
+  "2025-06-06": { name: "עיד אל-אדחא", type: "arab" },
+  "2025-06-07": { name: "עיד אל-אדחא", type: "arab" },
+  "2025-06-08": { name: "עיד אל-אדחא", type: "arab" },
+  "2025-06-26": { name: "ראס א-סנה", type: "arab" },
+  "2025-09-04": { name: "מולד א-נביא", type: "arab" },
+  // חגים אסלאמיים 2026
+  "2026-03-20": { name: "עיד אל-פיטר", type: "arab" },
+  "2026-03-21": { name: "עיד אל-פיטר", type: "arab" },
+  "2026-03-22": { name: "עיד אל-פיטר", type: "arab" },
+  "2026-05-27": { name: "עיד אל-אדחא", type: "arab" },
+  "2026-05-28": { name: "עיד אל-אדחא", type: "arab" },
+  "2026-05-29": { name: "עיד אל-אדחא", type: "arab" },
+  "2026-06-16": { name: "ראס א-סנה", type: "arab" },
+};
+
 const ABSENCE_TYPES = [
   { value: "חופש", label: "🌴 חופש" },
   { value: "מחלה", label: "🤒 מחלה" },
@@ -286,12 +346,14 @@ export default function Attendance() {
                 const dateStr = `${selectedMonth}-${String(day).padStart(2, "0")}`;
                 const data = dayMap[dateStr];
                 const absence = absenceMap[dateStr];
+                const holiday = HOLIDAYS[dateStr];
                 const isToday = dateStr === today;
                 const isFuture = dateStr > today;
 
                 let bg = "bg-gray-50";
                 if (data) bg = "bg-green-50";
                 else if (absence) bg = absenceBg(absence.type);
+                else if (holiday) bg = holiday.type === "jewish" ? "bg-blue-50" : "bg-yellow-50";
 
                 return (
                   <div
@@ -304,7 +366,7 @@ export default function Attendance() {
                       ${!isFuture ? "cursor-pointer hover:brightness-95" : ""}
                     `}
                   >
-                    <span className={`text-xs font-bold ${isToday ? "text-blue-600" : data ? "text-green-700" : absence ? absenceText(absence.type) : "text-gray-400"}`}>
+                    <span className={`text-xs font-bold ${isToday ? "text-blue-600" : data ? "text-green-700" : absence ? absenceText(absence.type) : holiday ? (holiday.type === "jewish" ? "text-blue-500" : "text-yellow-600") : "text-gray-400"}`}>
                       {day}
                     </span>
                     {data && (
@@ -317,7 +379,12 @@ export default function Attendance() {
                         {absenceLabel(absence.type)}
                       </span>
                     )}
-                    {!data && !absence && !isFuture && (
+                    {holiday && (
+                      <span className={`text-[9px] leading-tight mt-0.5 font-medium truncate w-full px-0.5 ${holiday.type === "jewish" ? "text-blue-400" : "text-yellow-500"}`}>
+                        {holiday.name}
+                      </span>
+                    )}
+                    {!data && !absence && !holiday && !isFuture && (
                       <span className="text-gray-200 text-lg leading-none mt-0.5">–</span>
                     )}
                   </div>
@@ -334,6 +401,8 @@ export default function Attendance() {
               { color: "bg-red-100 ring-1 ring-red-300", label: "מחלה" },
               { color: "bg-gray-100", label: "לא עבד" },
               { color: "bg-white ring-2 ring-blue-400", label: "היום" },
+              { color: "bg-blue-100 ring-1 ring-blue-300", label: "חג יהודי" },
+              { color: "bg-yellow-100 ring-1 ring-yellow-300", label: "חג ערבי" },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className={`w-3 h-3 rounded ${color}`} />
