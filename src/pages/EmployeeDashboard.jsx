@@ -291,12 +291,17 @@ export default function EmployeeDashboard() {
 
         {/* History */}
         <div className="bg-white rounded-2xl shadow p-4">
-          <div className="flex gap-2 mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">היסטוריית עבודה</p>
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
             {[["day", "היום"], ["week", "שבוע"], ["month", "חודש"]].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setTab(val)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${tab === val ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                  tab === val
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
               >
                 {label}
               </button>
@@ -304,29 +309,41 @@ export default function EmployeeDashboard() {
           </div>
 
           {filteredSessions.length === 0 ? (
-            <p className="text-gray-400 text-center py-4 text-sm">אין רשומות להצגה</p>
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <span className="text-4xl mb-3">📋</span>
+              <p className="text-gray-400 text-sm">אין רשומות להצגה</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredSessions.map(s => (
-                <div key={s.id} className="border border-gray-100 rounded-xl p-3">
+                <div key={s.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 hover:bg-blue-50 hover:border-blue-100 transition-colors">
                   <div className="flex justify-between items-start">
-                    <div className="text-right">
-                      <p className="font-medium text-gray-800 text-sm">{s.factoryName || "—"}</p>
-                      <p className="text-gray-500 text-xs">{s.projectName || "—"}</p>
+                    <div>
+                      <p className="font-bold text-gray-800">{s.factoryName || "—"}</p>
+                      <p className="text-blue-500 text-sm mt-0.5">{s.projectName || "—"}</p>
                     </div>
-                    <div className="text-left">
-                      <p className="font-bold text-blue-600 text-sm">{formatHours(getSecs(s))}</p>
-                      <p className="text-gray-400 text-xs">{s.date}</p>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="bg-blue-600 text-white text-sm font-bold px-3 py-1 rounded-full">
+                        {formatHours(getSecs(s))}
+                      </span>
+                      <span className="text-gray-400 text-xs">{s.date}</span>
                     </div>
                   </div>
-                  {s.description && <p className="text-gray-500 text-xs mt-2 border-t pt-2">{s.description}</p>}
+                  {s.description && (
+                    <p className="text-gray-500 text-xs mt-3 bg-white rounded-xl px-3 py-2 border border-gray-100 italic leading-relaxed">
+                      "{s.description}"
+                    </p>
+                  )}
                   {s.coWorkers?.length > 0 && (
-                    <p className="text-gray-400 text-xs mt-1.5 border-t pt-1.5">
-                      👷 עבדו איתך: {s.coWorkers.join(", ")}
+                    <p className="text-gray-500 text-xs mt-2 flex items-center gap-1.5">
+                      <span>👷</span>
+                      <span>{s.coWorkers.join(", ")}</span>
                     </p>
                   )}
                   {s.coWorkers?.length === 0 && (
-                    <p className="text-gray-300 text-xs mt-1.5 border-t pt-1.5">עבדת לבד</p>
+                    <p className="text-gray-400 text-xs mt-2 flex items-center gap-1.5">
+                      <span>🧍</span><span>עבדת לבד</span>
+                    </p>
                   )}
                 </div>
               ))}
