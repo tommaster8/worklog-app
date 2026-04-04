@@ -51,16 +51,16 @@ export default function AdminDashboard() {
   const todaySessions = sessions.filter(s => s.date === today && s.endTime != null);
   const workedTodayIds = new Set(todaySessions.map(s => s.employeeId));
 
-  // רק דיווחים מקוריים של אמין (יש להם שדה coWorkers), כל אחד בנפרד
+  const amin = employees.find(e => e.phone === "0547515894");
   const todayWorkGroups = todaySessions
-    .filter(s => Array.isArray(s.coWorkers))
+    .filter(s => amin && s.employeeId === amin.id)
     .map(s => ({
       factoryName: s.factoryName || "—",
       projectName: s.projectName || "—",
       durationSecs: getSecs(s),
       description: s.description || "",
       workerNames: [
-        employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+        amin.name,
         ...(s.coWorkers || []),
       ].filter(Boolean),
     }));

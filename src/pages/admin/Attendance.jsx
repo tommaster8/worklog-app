@@ -143,15 +143,16 @@ export default function Attendance() {
     const daySessions = sessions.filter(s => s.date === date && s.endTime != null);
     const dayAbsencesAll = allAbsences.filter(a => a.date === date);
 
+    const amin = employees.find(e => e.phone === "0547515894");
     const workGroups = daySessions
-      .filter(s => Array.isArray(s.coWorkers))
+      .filter(s => amin && s.employeeId === amin.id)
       .map(s => ({
         factoryName: s.factoryName || "—",
         projectName: s.projectName || "—",
         durationSecs: getSecs(s),
         description: s.description || "",
         workerNames: [
-          employees.find(e => e.id === s.employeeId)?.name || s.employeeName || "—",
+          amin.name,
           ...(s.coWorkers || []),
         ].filter(Boolean),
       }));
