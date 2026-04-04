@@ -176,7 +176,7 @@ export default function EmployeeDashboard() {
       );
       setSelectedWorkers([]);
       if (didntWork.length > 0) {
-        setAbsencePopup(didntWork.map(emp => ({ emp, type: "חופש", skip: false })));
+        setAbsencePopup(didntWork.map(emp => ({ emp, type: "חופש", note: "", skip: false })));
       }
       loadSessions();
     } catch (err) {
@@ -198,7 +198,7 @@ export default function EmployeeDashboard() {
           employeeName: row.emp.name,
           date,
           type: row.type,
-          note: "",
+          note: row.note || "",
           createdAt: Timestamp.now(),
         });
       }
@@ -358,25 +358,36 @@ export default function EmployeeDashboard() {
                     </label>
                   </div>
                   {!row.skip && (
-                    <div className="flex gap-2">
-                      {[
-                        { value: "חופש", label: "🌴 חופש" },
-                        { value: "מחלה", label: "🤒 מחלה" },
-                        { value: "אחר",  label: "📝 אחר" },
-                      ].map(opt => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setAbsencePopup(prev => prev.map((r, j) => j === i ? { ...r, type: opt.value } : r))}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                            row.type === opt.value
-                              ? "bg-blue-600 text-white border-blue-600"
-                              : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        {[
+                          { value: "חופש", label: "🌴 חופש" },
+                          { value: "מחלה", label: "🤒 מחלה" },
+                          { value: "אחר",  label: "📝 אחר" },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setAbsencePopup(prev => prev.map((r, j) => j === i ? { ...r, type: opt.value, note: opt.value !== "אחר" ? "" : r.note } : r))}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                              row.type === opt.value
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      {row.type === "אחר" && (
+                        <textarea
+                          value={row.note}
+                          onChange={e => setAbsencePopup(prev => prev.map((r, j) => j === i ? { ...r, note: e.target.value } : r))}
+                          placeholder="סיבת ההיעדרות..."
+                          rows={2}
+                          className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
