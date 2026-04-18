@@ -71,7 +71,7 @@ export default function EmployeeLogin() {
           <button
             type="submit"
             disabled={loading || !phone}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3 rounded-xl text-lg transition-colors"
+            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl text-lg transition-colors"
           >
             {loading ? "מחפש..." : "כניסה"}
           </button>
