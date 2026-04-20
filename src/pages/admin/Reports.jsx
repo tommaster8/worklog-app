@@ -14,6 +14,22 @@ function formatHours(totalSeconds) {
 
 const getSecs = s => s.durationSeconds ?? (s.durationMinutes || 0) * 60;
 
+// חישוב שכר לפי חוק שעות עבודה ומנוחה:
+// 8 שעות ראשונות = 100%, שעות 9-10 = 125%, משעה 11 = 150%
+function calcSalary(totalSeconds, hourlyRate) {
+  if (!hourlyRate) return null;
+  const hours = totalSeconds / 3600;
+  const regular = Math.min(hours, 8);
+  const overtime1 = Math.min(Math.max(hours - 8, 0), 2);
+  const overtime2 = Math.max(hours - 10, 0);
+  return regular * hourlyRate + overtime1 * hourlyRate * 1.25 + overtime2 * hourlyRate * 1.5;
+}
+
+function formatMoney(amount) {
+  if (amount == null) return "—";
+  return `₪${amount.toFixed(2)}`;
+}
+
 function tsToTime(ts) {
   if (!ts) return "—";
   return ts.toDate?.()?.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) || "—";
@@ -79,19 +95,33 @@ export default function Reports() {
 
   const totalMins = filtered.reduce((a, s) => a + (getSecs(s)), 0);
 
-  function exportExcel() {
-    const data = filtered.map(s => ({
-      "שם עובד": s.employeeName || "",
-      "תאריך": s.date || "",
-      "שעת כניסה": tsToTime(s.startTime),
-      "שעת יציאה": tsToTime(s.endTime),
-      'סה"כ שעות': formatHours(getSecs(s)),
+  const employeeMap = Object.fromEntries(employees.map(e => [e.id, e]));
 
-      "מפעל": s.factoryName || "",
-      "פרויקט": s.projectName || "",
-      "תיאור": s.description || "",
-    }));
-    const ws = XLSX.utils.json_to_sheet(data, { header: ["שם עובד","תאריך","שעת כניסה","שעת יציאה",'סה"כ שעות',"מפעל","פרויקט","תיאור"] });
+  const totalSalary = filtered.reduce((sum, s) => {
+    const rate = employeeMap[s.employeeId]?.hourlyRate;
+    const salary = calcSalary(getSecs(s), rate);
+    return salary != null ? sum + salary : sum;
+  }, 0);
+  const hasSalaryData = filtered.some(s => employeeMap[s.employeeId]?.hourlyRate);
+
+  function exportExcel() {
+    const data = filtered.map(s => {
+      const rate = employeeMap[s.employeeId]?.hourlyRate;
+      const salary = calcSalary(getSecs(s), rate);
+      return {
+        "שם עובד": s.employeeName || "",
+        "תאריך": s.date || "",
+        "שעת כניסה": tsToTime(s.startTime),
+        "שעת יציאה": tsToTime(s.endTime),
+        'סה"כ שעות': formatHours(getSecs(s)),
+        "מחיר לשעה (₪)": rate ?? "",
+        "שכר לתשלום (₪)": salary != null ? +salary.toFixed(2) : "",
+        "מפעל": s.factoryName || "",
+        "פרויקט": s.projectName || "",
+        "תיאור": s.description || "",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data, { header: ["שם עובד","תאריך","שעת כניסה","שעת יציאה",'סה"כ שעות',"מחיר לשעה (₪)","שכר לתשלום (₪)","מפעל","פרויקט","תיאור"] });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "שעות עבודה");
     XLSX.writeFile(wb, `דוח_שעות_${filters.dateFrom}_עד_${filters.dateTo}.xlsx`);
@@ -179,7 +209,7 @@ export default function Reports() {
 
         {/* Summary + Export */}
         <div className="flex items-center justify-between">
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <div className="bg-white rounded-xl shadow px-4 py-3">
               <p className="text-xs text-gray-500">רשומות</p>
               <p className="font-bold text-gray-800">{filtered.length}</p>
@@ -188,7 +218,12 @@ export default function Reports() {
               <p className="text-xs text-gray-500">סה"כ שעות</p>
               <p className="font-bold text-blue-600">{formatHours(totalMins)}</p>
             </div>
-
+            {hasSalaryData && (
+              <div className="bg-white rounded-xl shadow px-4 py-3">
+                <p className="text-xs text-gray-500">סה"כ שכר</p>
+                <p className="font-bold text-green-600">{formatMoney(totalSalary)}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={exportExcel}
@@ -210,7 +245,7 @@ export default function Reports() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {["עובד", "תאריך", "כניסה", "יציאה", "שעות", "מפעל", "פרויקט", ""].map(h => (
+                    {["עובד", "תאריך", "כניסה", "יציאה", "שעות", "שכר", "מפעל", "פרויקט", ""].map(h => (
                       <th key={h} className="px-3 py-2 text-right text-xs font-medium text-gray-500">{h}</th>
                     ))}
                   </tr>
@@ -223,6 +258,9 @@ export default function Reports() {
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{tsToTime(s.startTime)}</td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{tsToTime(s.endTime)}</td>
                       <td className="px-3 py-2 font-bold text-blue-600 whitespace-nowrap">{formatHours(getSecs(s))}</td>
+                      <td className="px-3 py-2 font-medium text-green-600 whitespace-nowrap">
+                        {formatMoney(calcSalary(getSecs(s), employeeMap[s.employeeId]?.hourlyRate))}
+                      </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{s.factoryName || "—"}</td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{s.projectName || "—"}</td>
                       <td className="px-3 py-2">
