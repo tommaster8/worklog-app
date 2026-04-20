@@ -49,6 +49,7 @@ export default function EmployeeDashboard() {
   const [selectedWorkers, setSelectedWorkers] = useState([]);
   const [absencePopup, setAbsencePopup] = useState(null); // [{ emp, type, skip }]
   const [savingAbsences, setSavingAbsences] = useState(false);
+  const [todayHandledIds, setTodayHandledIds] = useState(new Set());
 
   useEffect(() => {
     if (!employee) { navigate("/"); return; }
@@ -108,6 +109,19 @@ export default function EmployeeDashboard() {
   }, [employee?.id]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  async function loadTodayHandled() {
+    const today = new Date().toISOString().split("T")[0];
+    const [sessSnap, absSnap] = await Promise.all([
+      getDocs(query(collection(db, "workSessions"), where("date", "==", today), where("endTime", "!=", null))),
+      getDocs(query(collection(db, "absences"), where("date", "==", today))),
+    ]);
+    const ids = new Set();
+    sessSnap.docs.forEach(d => ids.add(d.data().employeeId));
+    absSnap.docs.forEach(d => ids.add(d.data().employeeId));
+    ids.delete(employee.id);
+    setTodayHandledIds(ids);
+  }
 
   async function startSession() {
     if (activeSession) return;
@@ -172,7 +186,9 @@ export default function EmployeeDashboard() {
 
       // עובדים שלא עבדו — פתח פופאפ היעדרויות
       const didntWork = allEmployees.filter(e =>
-        e.id !== employee.id && !selectedWorkers.some(w => w.id === e.id)
+        e.id !== employee.id &&
+        !todayHandledIds.has(e.id) &&
+        !selectedWorkers.some(w => w.id === e.id)
       );
       setSelectedWorkers([]);
       if (didntWork.length > 0) {
@@ -256,7 +272,7 @@ export default function EmployeeDashboard() {
                 התחלה: {activeSession.startTime?.toDate?.()?.toLocaleTimeString("he-IL")}
               </p>
               <button
-                onClick={() => setShowEndForm(true)}
+                onClick={() => { loadTodayHandled(); setShowEndForm(true); }}
                 className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl text-lg transition-colors"
               >
                 סיים יום עבודה
@@ -484,10 +500,10 @@ export default function EmployeeDashboard() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">עובדים שעבדו איתך היום</label>
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-2">
-                  {allEmployees.filter(e => e.id !== employee.id).length === 0 ? (
-                    <p className="text-gray-400 text-xs text-center py-2">אין עובדים פעילים</p>
+                  {allEmployees.filter(e => e.id !== employee.id && !todayHandledIds.has(e.id)).length === 0 ? (
+                    <p className="text-gray-400 text-xs text-center py-2">כל העובדים כבר סומנו היום</p>
                   ) : (
-                    allEmployees.filter(e => e.id !== employee.id).map(emp => (
+                    allEmployees.filter(e => e.id !== employee.id && !todayHandledIds.has(e.id)).map(emp => (
                       <label key={emp.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
