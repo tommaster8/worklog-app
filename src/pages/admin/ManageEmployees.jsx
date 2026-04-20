@@ -8,7 +8,7 @@ export default function ManageEmployees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", hourlyRate: "" });
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -22,13 +22,13 @@ export default function ManageEmployees() {
 
   function openAdd() {
     setEditing(null);
-    setForm({ name: "", phone: "" });
+    setForm({ name: "", phone: "", hourlyRate: "" });
     setShowForm(true);
   }
 
   function openEdit(emp) {
     setEditing(emp);
-    setForm({ name: emp.name, phone: emp.phone });
+    setForm({ name: emp.name, phone: emp.phone, hourlyRate: emp.hourlyRate ?? "" });
     setShowForm(true);
   }
 
@@ -36,7 +36,8 @@ export default function ManageEmployees() {
     e.preventDefault();
     setSaving(true);
     const cleaned = form.phone.replace(/\D/g, "");
-    const data = { name: form.name.trim(), phone: cleaned, active: true };
+    const rate = form.hourlyRate === "" ? null : Number(form.hourlyRate);
+    const data = { name: form.name.trim(), phone: cleaned, active: true, hourlyRate: rate };
     if (editing) {
       await updateDoc(doc(db, "employees", editing.id), data);
     } else {
@@ -73,7 +74,7 @@ export default function ManageEmployees() {
                 <div key={emp.id} className={`px-4 py-3 flex items-center justify-between ${!emp.active ? "opacity-50" : ""}`}>
                   <div>
                     <p className="font-medium text-gray-800">{emp.name}</p>
-                    <p className="text-gray-400 text-sm">{emp.phone}</p>
+                    <p className="text-gray-400 text-sm">{emp.phone}{emp.hourlyRate != null ? ` · ${emp.hourlyRate} ₪/שעה` : ""}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${emp.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -119,6 +120,19 @@ export default function ManageEmployees() {
                   onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                   placeholder="0501234567"
                   inputMode="numeric"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">מחיר לשעה (₪)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={form.hourlyRate}
+                  onChange={e => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
+                  placeholder="50"
+                  inputMode="decimal"
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
