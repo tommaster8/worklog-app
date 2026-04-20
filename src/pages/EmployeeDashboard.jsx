@@ -172,7 +172,7 @@ export default function EmployeeDashboard() {
 
       // עובדים שלא עבדו — פתח פופאפ היעדרויות
       const didntWork = allEmployees.filter(e =>
-        e.phone !== "0547515894" && !selectedWorkers.some(w => w.id === e.id)
+        e.id !== employee.id && !selectedWorkers.some(w => w.id === e.id)
       );
       setSelectedWorkers([]);
       if (didntWork.length > 0) {
@@ -484,10 +484,10 @@ export default function EmployeeDashboard() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">עובדים שעבדו איתך היום</label>
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-2">
-                  {allEmployees.filter(e => e.phone !== "0547515894").length === 0 ? (
+                  {allEmployees.filter(e => e.id !== employee.id).length === 0 ? (
                     <p className="text-gray-400 text-xs text-center py-2">אין עובדים פעילים</p>
                   ) : (
-                    allEmployees.filter(e => e.phone !== "0547515894").map(emp => (
+                    allEmployees.filter(e => e.id !== employee.id).map(emp => (
                       <label key={emp.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
