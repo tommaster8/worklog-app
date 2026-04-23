@@ -17,9 +17,8 @@ export default function EmployeeLogin() {
       setError("אנא הזן מספר טלפון תקין");
       return;
     }
-    const allowed = ["0547515894", "0544226896"];
-    if (!allowed.includes(cleaned)) {
-      setError("מספר הטלפון אינו מורשה");
+    if (cleaned !== "0547515894") {
+      setError("גישה מורשית לאמין בלבד");
       return;
     }
     setLoading(true);
