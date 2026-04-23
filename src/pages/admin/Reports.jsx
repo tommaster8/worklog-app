@@ -15,10 +15,26 @@ function formatHours(totalSeconds) {
 const getSecs = s => s.durationSeconds ?? (s.durationMinutes || 0) * 60;
 
 // חישוב שכר לפי חוק שעות עבודה ומנוחה:
-// 8 שעות ראשונות = 100%, שעות 9-10 = 125%, משעה 11 = 150%
-function calcSalary(totalSeconds, hourlyRate) {
+// יום רגיל: 8 שעות ראשונות = 100%, שעות 9-10 = 125%, משעה 11 = 150%
+// יום שישי: כל שעתיים עולה ב-25% (שעות 1-2 = 125%, 3-4 = 150%, 5-6 = 175%, ...)
+function calcSalary(totalSeconds, hourlyRate, date) {
   if (!hourlyRate) return null;
   const hours = totalSeconds / 3600;
+  const isFriday = date ? new Date(date).getDay() === 5 : false;
+
+  if (isFriday) {
+    let salary = 0;
+    let remaining = hours;
+    let multiplier = 1.25;
+    while (remaining > 0) {
+      const block = Math.min(remaining, 2);
+      salary += block * hourlyRate * multiplier;
+      remaining -= block;
+      multiplier += 0.25;
+    }
+    return salary;
+  }
+
   const regular = Math.min(hours, 8);
   const overtime1 = Math.min(Math.max(hours - 8, 0), 2);
   const overtime2 = Math.max(hours - 10, 0);
@@ -99,7 +115,7 @@ export default function Reports() {
 
   const totalSalary = filtered.reduce((sum, s) => {
     const rate = employeeMap[s.employeeId]?.hourlyRate;
-    const salary = calcSalary(getSecs(s), rate);
+    const salary = calcSalary(getSecs(s), rate, s.date);
     return salary != null ? sum + salary : sum;
   }, 0);
   const hasSalaryData = filtered.some(s => employeeMap[s.employeeId]?.hourlyRate);
@@ -107,7 +123,7 @@ export default function Reports() {
   function exportExcel() {
     const data = filtered.map(s => {
       const rate = employeeMap[s.employeeId]?.hourlyRate;
-      const salary = calcSalary(getSecs(s), rate);
+      const salary = calcSalary(getSecs(s), rate, s.date);
       return {
         "שם עובד": s.employeeName || "",
         "תאריך": s.date || "",
@@ -259,7 +275,7 @@ export default function Reports() {
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{tsToTime(s.endTime)}</td>
                       <td className="px-3 py-2 font-bold text-blue-600 whitespace-nowrap">{formatHours(getSecs(s))}</td>
                       <td className="px-3 py-2 font-medium text-green-600 whitespace-nowrap">
-                        {formatMoney(calcSalary(getSecs(s), employeeMap[s.employeeId]?.hourlyRate))}
+                        {formatMoney(calcSalary(getSecs(s), employeeMap[s.employeeId]?.hourlyRate, s.date))}
                       </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{s.factoryName || "—"}</td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{s.projectName || "—"}</td>
