@@ -19,7 +19,9 @@ const getSecs = s => s.durationSeconds ?? (s.durationMinutes || 0) * 60;
 // יום שישי: כל שעתיים עולה ב-25% (שעות 1-2 = 125%, 3-4 = 150%, 5-6 = 175%, ...)
 function calcSalary(totalSeconds, hourlyRate, date) {
   if (!hourlyRate) return null;
-  const hours = totalSeconds / 3600;
+  // מחסירים שעת הפסקה לא משולמת
+  const netSeconds = Math.max(0, totalSeconds - 3600);
+  const hours = netSeconds / 3600;
   const isFriday = date ? new Date(date).getDay() === 5 : false;
 
   if (isFriday) {
